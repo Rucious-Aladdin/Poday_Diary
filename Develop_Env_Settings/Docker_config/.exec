@@ -1,0 +1,16 @@
+#!/bin/bash
+# Linux에서 X11 포워딩을 위한 설정
+xhost +
+
+# Docker 컨테이너 실행
+sudo docker run -it \
+    --name android-studio \
+    --device /dev/kvm \
+    -e DISPLAY=$DISPLAY \
+    -v /tmp/.X11-unix:/tmp/.X11-unix \
+    -v /path/to/your/project:/home/user/project \
+    -e GDK_SCALE=1 \
+    -e GDK_DPI_SCALE=0.5 \
+    -e LC_ALL=ko_KR.UTF-8 \
+    android-studio:latest
+

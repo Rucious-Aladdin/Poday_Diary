@@ -1,0 +1,9 @@
+googletrans==4.0.0-rc1
+diffusers
+transformers
+torch
+accelerate
+xformers
+bitsandytes
+matplotlib-venn
+cartopy

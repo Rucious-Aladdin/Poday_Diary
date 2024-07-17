@@ -1,0 +1,8 @@
+#!/bin/bash
+
+sudo apt-get install -y  qemu-kvm libvirt-bin ubuntu-vm-builder bridge-utils
+sudo adduser `id -un` libvirtd
+sudo adduser `id -un` kvm
+
+sudo apt-get purge open-jdk*
+sudo apt-get install -y openjdk-17-jdk

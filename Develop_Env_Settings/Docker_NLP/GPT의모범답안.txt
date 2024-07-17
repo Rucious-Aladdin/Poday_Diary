@@ -1,0 +1,171 @@
+물론입니다. 터미널에 프린트하는 기능을 유지하면서 결과를 JSON 형식으로 반환하는 함수도 포함한 스크립트를 작성하겠습니다.
+수정된 roberta.py
+
+python
+
+import torch
+from transformers import XLMRobertaTokenizer, XLMRobertaForSequenceClassification
+
+def label_int2str(label):
+    emo2int = {
+        "기쁨": 0, "당황": 1, "분노": 2,
+        "불안": 3, "상처": 4, "슬픔": 5,
+        "중립": 6
+    }
+    int2emo = {v: k for k, v in emo2int.items()}
+    return int2emo[label]
+
+def get_emotions():
+    return ["기쁨", "당황", "분노", "불안", "상처", "슬픔", "중립"]
+
+# 모델과 토크나이저 로드
+model_name = "blue2959/xlm-roberta-base-finetuned-kor-8-emotions_v1.0"
+tokenizer = XLMRobertaTokenizer.from_pretrained(model_name)
+model = XLMRobertaForSequenceClassification.from_pretrained(model_name)
+
+# GPU 사용 설정
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model.to(device)
+
+def predict(sentence):
+    # 입력 텐서로 변환
+    inputs = tokenizer(sentence, return_tensors="pt").to(device)
+
+    # 모델 예측
+    with torch.no_grad():
+        outputs = model(**inputs)
+
+    # 예측 결과 출력
+    logits = outputs.logits
+    probabilities = torch.nn.functional.softmax(logits, dim=-1)[0]
+    predictions = torch.argmax(probabilities, dim=-1).item()
+    predicted_label = label_int2str(predictions)
+
+    # 결과를 JSON 형식으로 반환
+    emotions = get_emotions()
+    result = {
+        "input_sentence": sentence,
+        "probabilities": {emotions[i]: f"{prob.item() * 100:.1f}%" for i, prob in enumerate(probabilities)},
+        "predicted_label": predicted_label
+    }
+
+    # 터미널에 출력
+    print("==== Model Prediction ====")
+    print(f"Input Sentence: {sentence}")
+    print("Probabilities:")
+    for i, prob in enumerate(probabilities):
+        print(f"  {emotions[i]}: {prob.item() * 100:.1f}%")
+    print(f"Predicted Label: {predicted_label} ({predictions})")
+    print("==========================")
+
+    return result
+
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) > 1:
+        sentence = sys.argv[1]
+    else:
+        sentence = "This is a test sentence."
+
+    predict(sentence)
+
+이제 roberta.py 스크립트는 다음과 같은 기능을 제공합니다:
+
+    터미널에 예측 결과를 출력
+    predict() 함수 호출 시 JSON 형식의 결과 반환
+
+Flask 서버 스크립트
+
+이제 Flask 서버를 통해 예측 요청을 처리할 수 있습니다.
+server.py
+
+python
+
+from flask import Flask, request, jsonify
+import roberta
+
+app = Flask(__name__)
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    data = request.get_json()
+    sentence = data.get('sentence', '')
+    result = roberta.predict(sentence)
+    return jsonify(result)
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
+
+Dockerfile
+
+Flask 서버와 roberta.py 스크립트를 포함하도록 Dockerfile을 수정합니다.
+
+dockerfile
+
+# Base image with CUDA 12.2 and cuDNN 8
+FROM nvidia/cuda:12.2.0-devel-ubuntu22.04
+
+# Set the working directory
+WORKDIR /workspace
+
+# Install necessary dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3-pip \
+    python3-dev \
+    git \
+    vim \
+    net-tools \
+    iperf3 \
+    locales \
+    && rm -rf /var/lib/apt/lists/*
+
+# Configure locales
+RUN locale-gen ko_KR.UTF-8
+ENV LANG=ko_KR.UTF-8
+ENV LANGUAGE=ko_KR:ko
+ENV LC_ALL=ko_KR.UTF-8
+
+# Upgrade pip
+RUN python3 -m pip install --upgrade pip
+
+# Install Flask and other necessary Python packages
+RUN pip install flask torch transformers
+
+# Copy the server script and roberta script into the container
+COPY server.py /workspace/server.py
+COPY roberta.py /workspace/roberta.py
+
+# Set environment variables for Flask
+ENV FLASK_APP=server.py
+ENV FLASK_RUN_HOST=0.0.0.0
+
+# Expose the port Flask is running on
+EXPOSE 5000
+
+# Run the Flask server
+CMD ["flask", "run"]
+
+Docker 이미지 빌드 및 실행
+
+    Docker 이미지를 빌드합니다:
+
+    sh
+
+docker build -t nlp-flask-app .
+
+Docker 컨테이너를 실행합니다:
+
+sh
+
+    sudo docker run -it --rm --gpus all -p 5000:5000 nlp-flask-app
+
+예측 요청 테스트
+
+Flask 서버가 실행 중일 때, 예측 요청을 보내는 방법입니다. curl을 사용하여 터미널에서 요청을 보낼 수 있습니다.
+
+sh
+
+curl -X POST -H "Content-Type: application/json" -d '{"sentence": "맛있는 회를 먹어서 기뻤다."}' http://localhost:5000/predict
+
+이제 서버는 입력된 문장을 받아 roberta.py를 통해 예측을 수행하고 결과를 JSON 형식으로 반환합니다.
+

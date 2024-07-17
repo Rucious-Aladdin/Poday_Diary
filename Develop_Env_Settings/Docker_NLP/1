@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# Docker 컨테이너 실행
+sudo docker run -it \
+    --name nlp-container \
+    -v /path/to/your/project:/home/user/project \
+    -e GDK_SCALE=1 \
+    -e GDK_DPI_SCALE=0.5 \
+    -e LC_ALL=ko_KR.UTF-8 \
+    test-dl:latest

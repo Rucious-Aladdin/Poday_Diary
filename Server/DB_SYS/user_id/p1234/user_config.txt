@@ -1,0 +1,2 @@
+age 20대
+gender 여성
