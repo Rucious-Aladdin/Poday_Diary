@@ -1,0 +1,9 @@
+numpy
+pandas
+sounddevice
+wavio
+SpeechRecognition
+openai==0.28
+gtts
+mutagen
+ipython
